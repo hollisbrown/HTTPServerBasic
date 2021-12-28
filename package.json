@@ -1,0 +1,35 @@
+{
+  "name": "http_server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/server.js",
+  "bin": "src/server.js",
+  "scripts": {
+    "build": "pkg .",
+    "start": "nodemon src/server.js"
+  },
+  "keywords": [],
+  "author": "Luk",
+  "license": "MIT",
+  "devDependencies": {
+    "nodemon": "^2.0.15",
+    "xhr2": "^0.2.1"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "data/*"
+    ]
+  },
+  "pkg": {
+    "scripts": "src/*.js",
+    "assets": "src/**/*",
+    "targets": [
+      "node16-linux-x64"
+    ],
+    "path": "path.join(__dirname, '../src/**/*')",
+    "outputPath": "dist"
+  },
+  "engines": {
+    "node": "16.x"
+  }
+}
