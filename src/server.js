@@ -8,7 +8,7 @@ server.listen(PORT, () => console.log('Server running on port ' + PORT));
 function onRequest(request, response) {
     response.statusCode = 200;
     response.setHeader("Access-Control-Allow-Origin", "*"); //CORS !
-    response.setHeader('Content-Type', 'text/plain'); 
+    response.setHeader('Content-Type', 'text/plain');
     switch (request.method) {
         case 'GET':
             get(request, response);
@@ -20,32 +20,23 @@ function onRequest(request, response) {
     }
 }
 
-let list = [];
-let maxLength = 32;
-let jsonPath = path.resolve('src/data/list.json');
+let objectList = [];
+let textList = [];
+let maxEntries = 256;
+let pathRumors = path.resolve('src/data/rumors.json');
+load();
 
-function get(request, response) {   
+function get(request, response) {
     let url = request.url;
+
+
     switch (url) {
         case "/list":
-            let jsonList = JSON.stringify(list);
+            let jsonList = JSON.stringify(textList);
             response.write(jsonList);
-            break;
-        case "/clear":
-            response.write("List cleared.");
-            list = [];
-            break;
-        case "/save":
-            response.write("Saved to file.");
-            save();
-            break;
-        case "/load":
-            response.write("Loaded from file.");
-            load();
             break;
         default:
             response.statusCode = 400;
-            response.write("Valid URL commands are: /list /clear /save /load");          
             break;
     }
     response.end();
@@ -53,23 +44,20 @@ function get(request, response) {
 
 function post(request, response) {
     let buffer = '';
-    request.on('data', chunk => { 
-        if(chunk.length > 1024){
+    request.on('data', chunk => {
+        if (chunk.length > 1024) {
             return;
         }
-            buffer += chunk;
+        buffer += chunk;
     });
     request.on('end', () => {
-        if(buffer.length > 1024){
+        if (buffer.length > 1024) {
             return;
         }
         try {
-            let jsonObject = JSON.parse(buffer);
-            add(jsonObject.text);
-            console.log("--- CURRENT LIST: ---")
-            console.log(list);
+            let receivedObject = JSON.parse(buffer);
+            add(receivedObject);
         } catch (e) {
-
             console.log("Not a valid json object:");
             console.log(buffer);
         }
@@ -78,34 +66,57 @@ function post(request, response) {
     response.end();
 }
 
-function add(string) {
-    if (list.length >= maxLength) {
-        list = list.slice(1, maxLength);
-    }
-    if (string.length > 16 || string.length < 1024) {
-        list.push(string);
+function add(obj) {
+    let text = obj.text.replace(/[^a-zA-Z0-9-.,:?!"' ]/g, "");
+    obj.text = text;
+    if (obj.text.length > 4 || obj.text.length < 512) {
+
+        let today = new Date();
+        let date = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+        let time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+        let timestamp = date + '|' + time;
+        obj.timestamp = timestamp;
+
+        if (objectList.length >= maxEntries) {
+            objectList = objectList.slice(1, maxEntries);
+        }
+
+        objectList.push(obj);
+        createTextList();
+
+        console.log("saved! " + timestamp);
+        console.log(objectList.length + " items on list");
+        save();
     }
 }
 
+function createTextList() {
+    textList = [];
+    objectList.forEach(obj => {
+        textList.push(obj.text);
+    });
+}
+
 function save() {
-    let jsonList = JSON.stringify(list);
-    fs.writeFile(jsonPath, jsonList, 'utf-8', (err) => {
+    let jsonList = JSON.stringify(objectList);
+    fs.writeFile(pathRumors, jsonList, 'utf-8', (err) => {
         if (err) {
             console.log(err.message);
-        } else {
-            console.log("save done.");
         }
     });
 }
 
 function load() {
-    fs.readFile(jsonPath, 'utf-8', (err, data) => {
+    fs.readFile(pathRumors, 'utf-8', (err, data) => {
         if (err) {
             console.log(err.message);
         } else {
             console.log("loading done.");
-            list = JSON.parse(data);
-            console.log(list);
+            objectList = JSON.parse(data);
+            createTextList();
+            console.log("loaded " + objectList.length + " items");
         }
-    })
+    });
 }
+
+//curl -d '{"text":"This is a test","name":"curl test"}' -X POST http://localhost:8383/
